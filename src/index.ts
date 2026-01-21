@@ -100,7 +100,8 @@ app.post("/reservations", (req: Request, res: Response) => {
       roomId,
       userId,
       startTime: start,
-      endTime: end
+      endTime: end,
+      createdAt: now
     };
 
     reservations.push(reservation);

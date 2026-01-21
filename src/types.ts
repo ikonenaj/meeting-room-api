@@ -9,4 +9,5 @@ export interface Reservation {
   userId: string;
   startTime: Date;
   endTime: Date;
+  createdAt: Date
 }
