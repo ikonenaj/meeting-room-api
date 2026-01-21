@@ -1,3 +1,8 @@
+export interface Room {
+  id: string;
+  name: string
+}
+
 export interface Reservation {
   id: string;
   roomId: string;
