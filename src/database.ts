@@ -4,8 +4,18 @@ function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
+export const Rooms: Room[] = [
+  { id: "room1", name: "Room 1" },
+  { id: "room2", name: "Room 2" },
+  { id: "room3", name: "Room 3" }
+]
+
 class Database {
   private reservations: Reservation[] = [];
+
+  getRoom(id: string): Room | undefined {
+    return Rooms.find(r => r.id === id);
+  }
 
   getReservation(id: string): Reservation | undefined {
     return this.reservations.find(r => r.id === id);

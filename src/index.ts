@@ -31,6 +31,10 @@ app.post("/reservations", (req: Request, res: Response) => {
       return res.status(400).json({ error: "roomId, startTime, endTime are required" });
     }
 
+    if (!db.getRoom(roomId)) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
     const start = new Date(startTime);
     const end = new Date(endTime);
     const now = new Date();
