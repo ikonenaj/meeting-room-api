@@ -1,15 +1,10 @@
 import express, { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
 import { Reservation } from "./types";
+import { db } from "./database";
 
 const app = express();
 app.use(express.json());
-
-/* =======================
-   In-memory database
-======================= */
-
-const reservations: Reservation[] = [];
 
 /* =======================
    Helpers
@@ -21,17 +16,6 @@ function getUserId(req: Request): string {
     throw new Error("Missing x-user-id header");
   }
   return userId;
-}
-
-function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-  return aStart < bEnd && bStart < aEnd;
-}
-
-function getActiveReservationsByUser(userId: string): Reservation[] {
-  const now = new Date();
-  return reservations.filter(
-    r => r.userId === userId && r.endTime > now
-  );
 }
 
 /* =======================
@@ -80,18 +64,12 @@ app.post("/reservations", (req: Request, res: Response) => {
       return res.status(400).json({ error: "Maximum reservation length is 8 hours" });
     }
 
-    const activeReservations = getActiveReservationsByUser(userId);
+    const activeReservations = db.getActiveReservationsByUser(userId);
     if (activeReservations.length >= 2) {
       return res.status(400).json({ error: "User already has 2 active reservations" });
     }
 
-    const roomReservations = reservations.filter(r => r.roomId === roomId);
-
-    const conflict = roomReservations.some(r =>
-      overlaps(start, end, r.startTime, r.endTime)
-    );
-
-    if (conflict) {
+    if (!db.isRoomAvailable(roomId, start, end)) {
       return res.status(400).json({ error: "Reservation overlaps with an existing one" });
     }
 
@@ -104,7 +82,7 @@ app.post("/reservations", (req: Request, res: Response) => {
       createdAt: now
     };
 
-    reservations.push(reservation);
+    db.addReservation(reservation);
 
     return res.status(201).json(reservation);
 
@@ -122,17 +100,17 @@ app.delete("/reservations/:id", (req: Request, res: Response) => {
     const userId = getUserId(req);
     const { id } = req.params;
 
-    const index = reservations.findIndex(r => r.id === id);
+    const reservation = db.getReservation(id);
 
-    if (index === -1) {
+    if (!reservation) {
       return res.status(404).json({ error: "Reservation not found" });
     }
 
-    if (reservations[index].userId !== userId) {
+    if (reservation.userId !== userId) {
       return res.status(403).json({ error: "Cannot cancel another user's reservation" });
     }
 
-    reservations.splice(index, 1);
+    db.deleteReservation(id);
     return res.status(204).send();
 
   } catch (err: any) {
@@ -145,26 +123,25 @@ app.delete("/reservations/:id", (req: Request, res: Response) => {
 ======================= */
 
 app.get("/reservations", (req: Request, res: Response) => {
-  let result = [...reservations];
-
   const { roomId, startTime, endTime } = req.query;
 
-  if (roomId) {
-    result = result.filter(r => r.roomId === roomId);
-  }
+  let start: Date | undefined;
+  let end: Date | undefined;
 
   if (startTime || endTime) {
-    const start = startTime ? new Date(startTime as string) : new Date(0);
-    const end = endTime ? new Date(endTime as string) : new Date("9999-12-31");
+    start = startTime ? new Date(startTime as string) : new Date(0);
+    end = endTime ? new Date(endTime as string) : new Date("9999-12-31");
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({ error: "Invalid time range" });
     }
-
-    result = result.filter(r =>
-      overlaps(start, end, r.startTime, r.endTime)
-    );
   }
+
+  const result = db.getReservations({
+    roomId: roomId as string,
+    start,
+    end
+  })
 
   return res.json(result);
 });
