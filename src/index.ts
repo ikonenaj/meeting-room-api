@@ -155,6 +155,10 @@ app.get("/reservations", (req: Request, res: Response) => {
 ======================= */
 
 const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Meeting room API running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Meeting room API running on port ${PORT}`);
+  });
+}
+
+export default app;
