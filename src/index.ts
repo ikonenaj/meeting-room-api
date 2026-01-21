@@ -1,20 +1,9 @@
 import express, { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
+import { Reservation } from "./types";
 
 const app = express();
 app.use(express.json());
-
-/* =======================
-   Types
-======================= */
-
-interface Reservation {
-  id: string;
-  roomId: string;
-  userId: string;
-  startTime: Date;
-  endTime: Date;
-}
 
 /* =======================
    In-memory database
