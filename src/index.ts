@@ -100,11 +100,11 @@ app.post("/reservations", (req: Request, res: Response) => {
 
     const activeReservations = db.getActiveReservationsByUser(userId);
     if (activeReservations.length >= 2) {
-      return res.status(400).json({ error: "User already has 2 active reservations" });
+      return res.status(403).json({ error: "User already has 2 active reservations" });
     }
 
     if (!db.isRoomAvailable(roomId, start, end)) {
-      return res.status(400).json({ error: "Reservation overlaps with an existing one" });
+      return res.status(409).json({ error: "Reservation overlaps with an existing one" });
     }
 
     const reservation: Reservation = {

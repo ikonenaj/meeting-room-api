@@ -57,7 +57,7 @@ describe("Meeting Room API Integration Tests", () => {
           endTime: getFutureDate(2)
         });
 
-      expect(res.status).toBe(400); // The helper throws Error, caught by catch block
+      expect(res.status).toBe(401); // The helper throws Error, caught by catch block
       expect(res.body.error).toBe("Missing x-user-id header");
     });
 
@@ -134,7 +134,7 @@ describe("Meeting Room API Integration Tests", () => {
         roomId, startTime: getFutureDate(5), endTime: getFutureDate(6)
       });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(403);
       expect(res.body.error).toBe("User already has 2 active reservations");
     });
   });
@@ -168,7 +168,7 @@ describe("Meeting Room API Integration Tests", () => {
         startTime: baseStart.toISOString(),
         endTime: baseEnd.toISOString()
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
       expect(res.body.error).toBe("Reservation overlaps with an existing one");
     });
 
@@ -181,7 +181,7 @@ describe("Meeting Room API Integration Tests", () => {
         startTime: innerStart.toISOString(),
         endTime: innerEnd.toISOString()
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
     });
 
     it("should fail if new reservation envelops an existing one", async () => {
@@ -193,7 +193,7 @@ describe("Meeting Room API Integration Tests", () => {
         startTime: outerStart.toISOString(),
         endTime: outerEnd.toISOString()
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
     });
 
     it("should fail if new reservation overlaps the start", async () => {
@@ -205,7 +205,7 @@ describe("Meeting Room API Integration Tests", () => {
         startTime: overlapStart.toISOString(),
         endTime: overlapEnd.toISOString()
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
     });
 
     it("should SUCCEED if new reservation ends exactly when existing starts (Adjacency)", async () => {
