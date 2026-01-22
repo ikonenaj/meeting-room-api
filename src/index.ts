@@ -61,6 +61,10 @@ app.post("/reservations", (req: Request, res: Response) => {
       return res.status(400).json({ error: "roomId, startTime, endTime are required" });
     }
 
+    if (typeof roomId !== 'string' || typeof startTime !== 'string' || typeof endTime !== 'string') {
+      return res.status(400).json({ error: "Invalid payload body format. Values must be strings." });
+    }
+
     if (!db.getRoom(roomId)) {
       return res.status(404).json({ error: "Room not found" });
     }
