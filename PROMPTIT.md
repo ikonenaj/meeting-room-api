@@ -762,3 +762,87 @@ describe("Meeting Room API Integration Tests", () => {
   });
 });
 ```
+
+# Prompt 3
+
+Add unit tests for testing payload body format in post requests 
+
+# Response 3
+
+Based on your request, here are the specific unit tests to verify the payload body format validation logic.
+
+These tests specifically target the line in your API code that checks: if (typeof roomId !== 'string' || typeof startTime !== 'string' || typeof endTime !== 'string')
+
+You can add this block inside your existing describe("POST /reservations ...") section.
+New Test Block: Payload Format Validation
+```TypeScript
+
+    describe("Payload Format Validation", () => {
+      it("should fail if roomId is not a string", async () => {
+        const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: 101, // sending a number instead of string
+            startTime: getFutureDate(1).toISOString(),
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+
+      it("should fail if startTime is not a string (e.g. number timestamp)", async () => {
+        const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: roomId,
+            startTime: Date.now(), // sending number instead of ISO string
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+
+      it("should fail if endTime is not a string (e.g. null)", async () => {
+        const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: roomId,
+            startTime: getFutureDate(1).toISOString(),
+            endTime: null // sending null
+          });
+
+        // Note: Depending on your middleware, null might not trigger 'typeof !== string' 
+        // if strict checks are loose, but usually 'object' !== 'string'.
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+
+      it("should fail if payload is a boolean", async () => {
+         const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: true, // boolean
+            startTime: getFutureDate(1).toISOString(),
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+    });
+```
+
+Where to insert this
+
+Place this new describe block inside your existing describe("POST /reservations (Adding Reservations)", ...) block, preferably right after the it("should fail if required fields are missing", ...) test.
+Why these tests matter
+
+  1.  Type Safety: Express parses JSON bodies into standard JS types. If a client sends roomId: 123, it enters your code as a number. Without your specific check (typeof !== 'string'), the code might crash later when trying to do string operations or database lookups expecting a string.
+
+  2.  API Contract: It enforces the contract that dates must be passed as ISO strings, not Unix timestamps (numbers).

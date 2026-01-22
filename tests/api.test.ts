@@ -71,6 +71,50 @@ describe("Meeting Room API Integration Tests", () => {
       expect(res.body.error).toBe("roomId, startTime, endTime are required");
     });
 
+    describe("Payload Format Validation", () => {
+      it("should fail if roomId is not a string", async () => {
+        const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: 101, // sending a number instead of string
+            startTime: getFutureDate(1).toISOString(),
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+
+      it("should fail if startTime is not a string (e.g. number timestamp)", async () => {
+        const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: roomId,
+            startTime: Date.now(), // sending number instead of ISO string
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+
+      it("should fail if payload is a boolean", async () => {
+         const res = await request(app)
+          .post("/reservations")
+          .set("x-user-id", userId)
+          .send({
+            roomId: true, // boolean
+            startTime: getFutureDate(1).toISOString(),
+            endTime: getFutureDate(2).toISOString()
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Invalid payload body format. Values must be strings.");
+      });
+    });
+
     it("should fail if start time is after end time", async () => {
       const res = await request(app)
         .post("/reservations")
