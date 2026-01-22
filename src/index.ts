@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
 import { Reservation } from "./types";
 import { db } from "./database";
+import * as reservationService from "./services/reservationService";
 
 const app = express();
 app.use(express.json());
@@ -20,28 +21,33 @@ function getUserId(req: Request): string | null {
    GET /reservations
 ======================= */
 
-app.get("/reservations", (req: Request, res: Response) => {
-  const { roomId, startTime, endTime } = req.query;
+app.get("/reservations", async (req: Request, res: Response) => {
+  try {
+    const { roomId, startTime, endTime } = req.query;
 
-  let start: Date | undefined;
-  let end: Date | undefined;
-
-  if (startTime || endTime) {
-    start = startTime ? new Date(startTime as string) : new Date(0);
-    end = endTime ? new Date(endTime as string) : new Date("9999-12-31");
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Invalid time range" });
+    if (roomId && typeof roomId !== 'string') {
+      return res.status(400).json({ error: "roomId must be a string" })
     }
+    if (startTime && typeof startTime !== 'string') {
+      return res.status(400).json({ error: "startTime must be a string" })
+    }
+    if (endTime && typeof endTime !== 'string') {
+      return res.status(400).json({ error: "endTime must be a string" })
+    }
+
+    const result = await reservationService.getReservations({
+      roomId: roomId as string,
+      startTime: startTime as string,
+      endTime: endTime as string
+    })
+
+    return res.json(result);
+  } catch (e: any) {
+    if (e.message.includes("Invalid")) {
+      return res.status(400).json({ error: e.message })
+    }
+    return res.status(500).json({ error: "Internal server error" })
   }
-
-  const result = db.getReservations({
-    roomId: roomId as string,
-    start,
-    end
-  })
-
-  return res.json(result);
 });
 
 /* =======================
