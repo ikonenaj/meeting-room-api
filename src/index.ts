@@ -49,84 +49,79 @@ app.get("/reservations", (req: Request, res: Response) => {
 ======================= */
 
 app.post("/reservations", (req: Request, res: Response) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Missing x-user-id header" });
-    }
-
-    const { roomId, startTime, endTime } = req.body;
-
-    if (!roomId || !startTime || !endTime) {
-      return res.status(400).json({ error: "roomId, startTime, endTime are required" });
-    }
-
-    if (typeof roomId !== 'string' || typeof startTime !== 'string' || typeof endTime !== 'string') {
-      return res.status(400).json({ error: "Invalid payload body format. Values must be strings." });
-    }
-
-    if (!db.getRoom(roomId)) {
-      return res.status(404).json({ error: "Room not found" });
-    }
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const now = new Date();
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Invalid date format" });
-    }
-
-    if (start >= end) {
-      return res.status(400).json({ error: "startTime must be before endTime" });
-    }
-
-    if (start < now) {
-      return res.status(400).json({ error: "Reservations cannot be in the past" });
-    }
-
-    const oneYearFromNow = new Date();
-    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-
-    if (start > oneYearFromNow) {
-      return res.status(400).json({ error: "Reservations can be made max 1 year in advance" });
-    }
-
-    const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-
-    if (durationMinutes < 15) {
-      return res.status(400).json({ error: "Minimum reservation length is 15 minutes" });
-    }
-
-    if (durationMinutes > 480) {
-      return res.status(400).json({ error: "Maximum reservation length is 8 hours" });
-    }
-
-    const activeReservations = db.getActiveReservationsByUser(userId);
-    if (activeReservations.length >= 2) {
-      return res.status(403).json({ error: "User already has 2 active reservations" });
-    }
-
-    if (!db.isRoomAvailable(roomId, start, end)) {
-      return res.status(409).json({ error: "Reservation overlaps with an existing one" });
-    }
-
-    const reservation: Reservation = {
-      id: uuid(),
-      roomId,
-      userId,
-      startTime: start,
-      endTime: end,
-      createdAt: now
-    };
-
-    db.addReservation(reservation);
-
-    return res.status(201).json(reservation);
-
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message });
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Missing x-user-id header" });
   }
+
+  const { roomId, startTime, endTime } = req.body;
+
+  if (!roomId || !startTime || !endTime) {
+    return res.status(400).json({ error: "roomId, startTime, endTime are required" });
+  }
+
+  if (typeof roomId !== 'string' || typeof startTime !== 'string' || typeof endTime !== 'string') {
+    return res.status(400).json({ error: "Invalid payload body format. Values must be strings." });
+  }
+
+  if (!db.getRoom(roomId)) {
+    return res.status(404).json({ error: "Room not found" });
+  }
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const now = new Date();
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return res.status(400).json({ error: "Invalid date format" });
+  }
+
+  if (start >= end) {
+    return res.status(400).json({ error: "startTime must be before endTime" });
+  }
+
+  if (start < now) {
+    return res.status(400).json({ error: "Reservations cannot be in the past" });
+  }
+
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+  if (start > oneYearFromNow) {
+    return res.status(400).json({ error: "Reservations can be made max 1 year in advance" });
+  }
+
+  const durationMinutes = (end.getTime() - start.getTime()) / 60000;
+
+  if (durationMinutes < 15) {
+    return res.status(400).json({ error: "Minimum reservation length is 15 minutes" });
+  }
+
+  if (durationMinutes > 480) {
+    return res.status(400).json({ error: "Maximum reservation length is 8 hours" });
+  }
+
+  const activeReservations = db.getActiveReservationsByUser(userId);
+  if (activeReservations.length >= 2) {
+    return res.status(403).json({ error: "User already has 2 active reservations" });
+  }
+
+  if (!db.isRoomAvailable(roomId, start, end)) {
+    return res.status(409).json({ error: "Reservation overlaps with an existing one" });
+  }
+
+  const reservation: Reservation = {
+    id: uuid(),
+    roomId,
+    userId,
+    startTime: start,
+    endTime: end,
+    createdAt: now
+  };
+
+  db.addReservation(reservation);
+
+  return res.status(201).json(reservation);
 });
 
 /* =======================
@@ -134,29 +129,24 @@ app.post("/reservations", (req: Request, res: Response) => {
 ======================= */
 
 app.delete("/reservations/:id", (req: Request, res: Response) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Missing x-user-id header" });
-    }
-
-    const { id } = req.params;
-    const reservation = db.getReservation(id);
-
-    if (!reservation) {
-      return res.status(404).json({ error: "Reservation not found" });
-    }
-
-    if (reservation.userId !== userId) {
-      return res.status(403).json({ error: "Cannot cancel another user's reservation" });
-    }
-
-    db.deleteReservation(id);
-    return res.status(204).send();
-
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message });
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Missing x-user-id header" });
   }
+
+  const { id } = req.params;
+  const reservation = db.getReservation(id);
+
+  if (!reservation) {
+    return res.status(404).json({ error: "Reservation not found" });
+  }
+
+  if (reservation.userId !== userId) {
+    return res.status(403).json({ error: "Cannot cancel another user's reservation" });
+  }
+
+  db.deleteReservation(id);
+  return res.status(204).send();
 });
 
 /* =======================
