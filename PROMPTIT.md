@@ -2,6 +2,7 @@
 [Prompt 2 - Yksikkötestien luominen](#prompt-2)
 [Prompt 3 - Yksikkötestit post-requestin payload bodylle](#prompt-3)
 [Prompt 4 - Mock database testejä varten](#prompt-4)
+[Prompt 5 - Luo dockerfile](#prompt-5)
 
 
 # Prompt 1:
@@ -1349,3 +1350,131 @@ describe("Meeting Room API Integration Tests", () => {
   });
 });
 ```
+
+# Prompt 5
+
+. 
+├── api-calls.rest 
+├── node_modules
+├── dist 
+│ └── index.js
+├── jest.config.js
+├── package.json
+├── package-lock.json
+├── PROMPTIT.md
+├── src
+│ ├── database.ts
+│ ├── index.ts
+│ └── types.ts
+├── tests
+│ └── api.test.ts
+└── tsconfig.json 
+
+Create a dockerfile and .dockerignore for the project
+
+# Response 5
+
+Nice, pretty standard Node + TypeScript layout 👍
+I’ll assume:
+
+You build TypeScript into dist/
+
+dist/index.js is the runtime entry point
+
+You don’t want node_modules baked in from your local machine
+
+This is not using a framework that needs dev deps at runtime
+
+Below is a clean, production-ready setup.
+
+```Dockerfile
+# ---- Build stage ----
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy source and config
+COPY tsconfig.json ./
+COPY src ./src
+
+# Build TypeScript
+RUN npm run build
+
+
+# ---- Runtime stage ----
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy only production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled output
+COPY --from=builder /app/dist ./dist
+
+# If you have runtime files (like migrations, prompts, etc.)
+COPY PROMPTIT.md ./
+
+# Expose port if your app listens on one (adjust if needed)
+# EXPOSE 3000
+
+CMD ["node", "dist/index.js"]
+```
+
+Why this setup?
+
+Multi-stage build → smaller, cleaner image
+
+No TypeScript or dev deps in final image
+
+Reproducible installs via npm ci
+
+```.dockerignore
+node_modules
+dist
+tests
+*.log
+
+.git
+.gitignore
+
+Dockerfile
+docker-compose.yml
+
+npm-debug.log
+.env
+.env.*
+```
+
+Notes
+
+- dist is ignored because Docker builds it fresh
+
+- tests excluded to keep image lean
+
+- .env ignored (use Docker secrets or env vars instead)
+
+Optional tweaks (if you want)
+
+- If your app needs database migrations or seed files, include them explicitly
+
+- If you run tests in Docker, add a separate test stage
+
+- If this is an API, uncomment and set EXPOSE
+
+If you want, tell me:
+
+- the start script from package.json
+
+- whether this is an API / CLI / worker
+
+- if you use Prisma / TypeORM / Drizzle
+
+…and I’ll fine-tune this exactly to your setup 🔧🔥
