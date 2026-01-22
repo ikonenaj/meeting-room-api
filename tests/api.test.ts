@@ -412,7 +412,52 @@ describe("Meeting Room API Integration Tests", () => {
         .query({ startTime: "invalid-date" });
       
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Invalid time range");
+      expect(res.body.error).toBe("Invalid startTime format");
+    });
+
+    describe("Query Parameter Type Validation", () => {
+      // In Express, passing the same key twice (?roomId=a&roomId=b) often results 
+      // in an Array, or passing brackets (?roomId[key]=val) results in an Object.
+      // Both have typeof === 'object' and should be rejected by your handler.
+
+      it("should return 400 if roomId is passed as an array (duplicate params)", async () => {
+        const res = await request(app)
+          .get("/reservations")
+          // Supertest serializes arrays as &roomId=val1&roomId=val2
+          .query({ roomId: ["room1", "room2"] }); 
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("roomId must be a string");
+      });
+
+      it("should return 400 if startTime is passed as an object", async () => {
+        // Manually constructing the query string to simulate an object payload
+        // resulting in req.query.startTime being { invalid: 'true' }
+        const res = await request(app)
+          .get("/reservations?startTime[invalid]=true");
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("startTime must be a string");
+      });
+
+      it("should return 400 if endTime is passed as an array", async () => {
+        const res = await request(app)
+          .get("/reservations")
+          .query({ endTime: ["2023-01-01", "2023-01-02"] });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("endTime must be a string");
+      });
+
+      it("should allow valid string parameters", async () => {
+        // Valid case to ensure we didn't break normal functionality
+        const res = await request(app)
+          .get("/reservations")
+          .query({ roomId: "room1" });
+
+        // Should be 200 (OK)
+        expect(res.status).toBe(200);
+      });
     });
   });
 

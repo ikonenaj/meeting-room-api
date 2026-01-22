@@ -1478,3 +1478,69 @@ If you want, tell me:
 - if you use Prisma / TypeORM / Drizzle
 
 …and I’ll fine-tune this exactly to your setup 🔧🔥
+
+# Prompt 6
+
+Create unit test for checking the query parameter types for get requests
+
+# Response 6
+
+Based on the route handler code you provided, you specifically want to verify that the API rejects query parameters when they appear as Arrays (duplicate keys) or Objects (nested keys), rather than simple Strings.
+
+This is a common security practice to prevent HTTP Parameter Pollution.
+
+Here is the specific unit test block to add inside your describe("GET /reservations ...) section.
+
+```TypeScript
+
+    describe("Query Parameter Type Validation", () => {
+      // In Express, passing the same key twice (?roomId=a&roomId=b) often results 
+      // in an Array, or passing brackets (?roomId[key]=val) results in an Object.
+      // Both have typeof === 'object' and should be rejected by your handler.
+
+      it("should return 400 if roomId is passed as an array (duplicate params)", async () => {
+        const res = await request(app)
+          .get("/reservations")
+          // Supertest serializes arrays as &roomId=val1&roomId=val2
+          .query({ roomId: ["room1", "room2"] }); 
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("roomId must be a string");
+      });
+
+      it("should return 400 if startTime is passed as an object", async () => {
+        // Manually constructing the query string to simulate an object payload
+        // resulting in req.query.startTime being { invalid: 'true' }
+        const res = await request(app)
+          .get("/reservations?startTime[invalid]=true");
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("startTime must be a string");
+      });
+
+      it("should return 400 if endTime is passed as an array", async () => {
+        const res = await request(app)
+          .get("/reservations")
+          .query({ endTime: ["2023-01-01", "2023-01-02"] });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("endTime must be a string");
+      });
+
+      it("should allow valid string parameters", async () => {
+        // Valid case to ensure we didn't break normal functionality
+        const res = await request(app)
+          .get("/reservations")
+          .query({ roomId: "room1" });
+
+        // Should be 200 (OK)
+        expect(res.status).toBe(200);
+      });
+    });
+```
+
+Why this works
+
+    Arrays (['a', 'b']): When you use .query({ key: ['a', 'b'] }), Supertest sends ?key=a&key=b. Express (by default) parses this into req.query.key = ['a', 'b']. Since typeof ['a', 'b'] is 'object', your check typeof !== 'string' catches it.
+
+    Objects (?key[sub]=val): This parses into { key: { sub: 'val' } }. typeof is also 'object', so it triggers the error.
