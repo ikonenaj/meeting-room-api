@@ -54,7 +54,7 @@ app.get("/reservations", async (req: Request, res: Response) => {
    POST /reservations
 ======================= */
 
-app.post("/reservations", (req: Request, res: Response) => {
+app.post("/reservations", async (req: Request, res: Response) => {
   const userId = getUserId(req);
   if (!userId) {
     return res.status(401).json({ error: "Missing x-user-id header" });
@@ -70,64 +70,25 @@ app.post("/reservations", (req: Request, res: Response) => {
     return res.status(400).json({ error: "Invalid payload body format. Values must be strings." });
   }
 
-  if (!db.getRoom(roomId)) {
-    return res.status(404).json({ error: "Room not found" });
+  try {
+    const reservation = await reservationService.addReservation({
+      roomId,
+      userId,
+      startTime,
+      endTime
+    });
+
+    return res.status(201).json(reservation);
+
+  } catch (e: any) {
+    const errorMessage: string = e.message;
+
+    if (e.message === "Room not found") return res.status(404).json({ error: errorMessage });
+    if (e.message.includes("User already")) return res.status(403).json({ error: errorMessage });
+    if (e.message.includes("Reservation overlaps")) return res.status(409).json({ error: errorMessage });
+
+    return res.status(400).json({ error: errorMessage });
   }
-
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  const now = new Date();
-
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return res.status(400).json({ error: "Invalid date format" });
-  }
-
-  if (start >= end) {
-    return res.status(400).json({ error: "startTime must be before endTime" });
-  }
-
-  if (start < now) {
-    return res.status(400).json({ error: "Reservations cannot be in the past" });
-  }
-
-  const oneYearFromNow = new Date();
-  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-
-  if (start > oneYearFromNow) {
-    return res.status(400).json({ error: "Reservations can be made max 1 year in advance" });
-  }
-
-  const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-
-  if (durationMinutes < 15) {
-    return res.status(400).json({ error: "Minimum reservation length is 15 minutes" });
-  }
-
-  if (durationMinutes > 480) {
-    return res.status(400).json({ error: "Maximum reservation length is 8 hours" });
-  }
-
-  const activeReservations = db.getActiveReservationsByUser(userId);
-  if (activeReservations.length >= 2) {
-    return res.status(403).json({ error: "User already has 2 active reservations" });
-  }
-
-  if (!db.isRoomAvailable(roomId, start, end)) {
-    return res.status(409).json({ error: "Reservation overlaps with an existing one" });
-  }
-
-  const reservation: Reservation = {
-    id: uuid(),
-    roomId,
-    userId,
-    startTime: start,
-    endTime: end,
-    createdAt: now
-  };
-
-  db.addReservation(reservation);
-
-  return res.status(201).json(reservation);
 });
 
 /* =======================
