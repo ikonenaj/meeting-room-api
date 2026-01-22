@@ -10,13 +10,39 @@ app.use(express.json());
    Helpers
 ======================= */
 
-function getUserId(req: Request): string {
+function getUserId(req: Request): string | null {
   const userId = req.header("x-user-id");
-  if (!userId) {
-    throw new Error("Missing x-user-id header");
-  }
+  if (!userId) return null;
   return userId;
 }
+
+/* =======================
+   GET /reservations
+======================= */
+
+app.get("/reservations", (req: Request, res: Response) => {
+  const { roomId, startTime, endTime } = req.query;
+
+  let start: Date | undefined;
+  let end: Date | undefined;
+
+  if (startTime || endTime) {
+    start = startTime ? new Date(startTime as string) : new Date(0);
+    end = endTime ? new Date(endTime as string) : new Date("9999-12-31");
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: "Invalid time range" });
+    }
+  }
+
+  const result = db.getReservations({
+    roomId: roomId as string,
+    start,
+    end
+  })
+
+  return res.json(result);
+});
 
 /* =======================
    POST /reservations
@@ -25,6 +51,10 @@ function getUserId(req: Request): string {
 app.post("/reservations", (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Missing x-user-id header" });
+    }
+
     const { roomId, startTime, endTime } = req.body;
 
     if (!roomId || !startTime || !endTime) {
@@ -102,8 +132,11 @@ app.post("/reservations", (req: Request, res: Response) => {
 app.delete("/reservations/:id", (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const { id } = req.params;
+    if (!userId) {
+      return res.status(401).json({ error: "Missing x-user-id header" });
+    }
 
+    const { id } = req.params;
     const reservation = db.getReservation(id);
 
     if (!reservation) {
@@ -120,34 +153,6 @@ app.delete("/reservations/:id", (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
   }
-});
-
-/* =======================
-   GET /reservations
-======================= */
-
-app.get("/reservations", (req: Request, res: Response) => {
-  const { roomId, startTime, endTime } = req.query;
-
-  let start: Date | undefined;
-  let end: Date | undefined;
-
-  if (startTime || endTime) {
-    start = startTime ? new Date(startTime as string) : new Date(0);
-    end = endTime ? new Date(endTime as string) : new Date("9999-12-31");
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Invalid time range" });
-    }
-  }
-
-  const result = db.getReservations({
-    roomId: roomId as string,
-    start,
-    end
-  })
-
-  return res.json(result);
 });
 
 /* =======================
