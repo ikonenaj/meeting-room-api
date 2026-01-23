@@ -46,7 +46,7 @@ app.get("/reservations", async (req: Request, res: Response) => {
     if (e.message.includes("Invalid")) {
       return res.status(400).json({ error: e.message })
     }
-    return res.status(500).json({ error: "Internal server error" })
+    return res.status(500).json({ error: "Internal Server Error" })
   }
 });
 
@@ -95,25 +95,24 @@ app.post("/reservations", async (req: Request, res: Response) => {
    DELETE /reservations/:id
 ======================= */
 
-app.delete("/reservations/:id", (req: Request, res: Response) => {
+app.delete("/reservations/:id", async (req: Request, res: Response) => {
   const userId = getUserId(req);
   if (!userId) {
     return res.status(401).json({ error: "Missing x-user-id header" });
   }
 
   const { id } = req.params;
-  const reservation = db.getReservation(id);
+  
+  try {
+    await reservationService.deleteReservation(id, userId);
+    return res.status(204).send();
+  } catch (e: any) {
+    const errorMessage: string = e.message;
+    if (errorMessage === "Reservation not found") return res.status(404).json({ error: errorMessage });
+    if (errorMessage === "Cannot cancel another user's reservation") return res.status(403).json({ error: errorMessage });
 
-  if (!reservation) {
-    return res.status(404).json({ error: "Reservation not found" });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-
-  if (reservation.userId !== userId) {
-    return res.status(403).json({ error: "Cannot cancel another user's reservation" });
-  }
-
-  db.deleteReservation(id);
-  return res.status(204).send();
 });
 
 /* =======================

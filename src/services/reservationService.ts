@@ -83,4 +83,13 @@ async function addReservation(params: { roomId: string; userId: string; startTim
   return reservation;
 }
 
-export { addReservation, getReservations };
+async function deleteReservation(id: string, userId: string) {
+  const reservation = db.getReservation(id);
+
+  if (!reservation) throw new Error("Reservation not found");
+  if (reservation.userId !== userId) throw new Error("Cannot cancel another user's reservation");
+
+  db.deleteReservation(id);
+}
+
+export { addReservation, deleteReservation, getReservations };
