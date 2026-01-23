@@ -21,10 +21,11 @@ class Database {
     return this.reservations.find(r => r.id === id);
   }
 
-  getReservations(filter: { roomId?: string; start?: Date; end?: Date }): Reservation[] {
+  getReservations(filter: { roomId?: string; userId?: string; start?: Date; end?: Date }): Reservation[] {
     return this.reservations.filter(r => {
       let match = true;
       if (filter.roomId) match = match && r.roomId === filter.roomId;
+      if (filter.userId) match = match && r.userId === filter.userId;
 
       if (filter.start || filter.end) {
         const start = filter.start ? filter.start : new Date(0);

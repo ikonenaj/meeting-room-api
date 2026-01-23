@@ -2,7 +2,7 @@ import { v4 as uuid } from "uuid";
 import { Reservation } from "../types";
 import { db } from "../database";
 
-async function getReservations(params: { roomId?: string; startTime?: string; endTime?: string }) {
+async function getReservations(params: { roomId?: string; userId?: string; startTime?: string; endTime?: string }) {
   let start: Date | undefined;
   let end: Date | undefined;
 
@@ -17,6 +17,7 @@ async function getReservations(params: { roomId?: string; startTime?: string; en
 
   return db.getReservations({
     roomId: params.roomId,
+    userId: params.userId,
     start,
     end
   });

@@ -4,6 +4,8 @@
 [Prompt 4 - Mock database testejä varten](#prompt-4)
 [Prompt 5 - Luo dockerfile](#prompt-5)
 [Prompt 6 - Yksikkötestit query parametreille](#prompt-6)
+[Prompt 7 - Yksikkötestit käyttäjien omien varausten hakemiselle](#prompt-7)
+[Prompt 8 - Aiemman vastauksen korjaaminen](#prompt-8)
 
 
 # Prompt 1:
@@ -1545,3 +1547,176 @@ Why this works
     Arrays (['a', 'b']): When you use .query({ key: ['a', 'b'] }), Supertest sends ?key=a&key=b. Express (by default) parses this into req.query.key = ['a', 'b']. Since typeof ['a', 'b'] is 'object', your check typeof !== 'string' catches it.
 
     Objects (?key[sub]=val): This parses into { key: { sub: 'val' } }. typeof is also 'object', so it triggers the error.
+
+# Prompt 7
+
+Create unit tests for users getting their own reservations from GET /own-reservations
+
+# Response 7
+
+Here are the unit tests for your new endpoint.
+
+You should add this describe block inside your main describe("Meeting Room API Integration Tests", ...) block in tests/api.test.ts.
+
+These tests specifically verify that:
+
+  -  The user gets their own data.
+
+  -  The user does not see other people's data (privacy check).
+
+  -  Authentication is strictly enforced.
+
+```TypeScript
+
+  describe("GET /own-reservations (User History)", () => {
+    let userId: string;
+    let otherUserId: string;
+
+    beforeEach(async () => {
+      // 1. Clear database
+      db.clear(); 
+
+      // 2. Setup: Create two different users
+      userId = generateUserId();
+      otherUserId = generateUserId();
+
+      // 3. Create a reservation for OUR user
+      await request(app).post("/reservations").set("x-user-id", userId).send({
+        roomId: "room1",
+        startTime: getFutureDate(1).toISOString(),
+        endTime: getFutureDate(2).toISOString()
+      });
+
+      // 4. Create a reservation for ANOTHER user (noise data)
+      await request(app).post("/reservations").set("x-user-id", otherUserId).send({
+        roomId: "room1",
+        startTime: getFutureDate(3).toISOString(),
+        endTime: getFutureDate(4).toISOString()
+      });
+    });
+
+    it("should return all reservations belonging to the requesting user", async () => {
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", userId);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].userId).toBe(userId);
+    });
+
+    it("should NOT return reservations belonging to other users", async () => {
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", userId);
+
+      // We added 2 reservations total to the DB, but this user should only see 1
+      expect(res.body).toHaveLength(1);
+      
+      const otherUserReservation = res.body.find((r: any) => r.userId === otherUserId);
+      expect(otherUserReservation).toBeUndefined();
+    });
+
+    it("should return an empty list if the user has no reservations", async () => {
+      const freshUser = generateUserId();
+      
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", freshUser);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it("should fail with 401 if x-user-id header is missing", async () => {
+      const res = await request(app).get("/own-reservations");
+      
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("Missing x-user-id header");
+    });
+  });
+```
+
+# Prompt 8
+
+Your previous result did not work because db.clear(); does not exist in my app. Try again and make it fit with the existing tests.
+
+# Response 8
+
+You are correct. Since db.clear() does not exist in your implementation, we must use the manual clearing method you are already using in your other tests (db.getReservations({}).forEach(...)).
+
+Here is the correct code block.
+
+I have placed this in a new describe block. You should insert this immediately after the closing bracket }); of the describe("GET /reservations (Searching)", ...) block, but before the describe("DELETE ...") block.
+
+```TypeScript
+describe("GET /own-reservations (User History)", () => {
+    let userId: string;
+    let otherUserId: string;
+
+    beforeEach(async () => {
+      // 1. Manually clear database (since db.clear() doesn't exist)
+      const allReservations = db.getReservations({});
+      allReservations.forEach(r => db.deleteReservation(r.id));
+
+      // 2. Setup: Generate IDs
+      userId = generateUserId();
+      otherUserId = generateUserId();
+
+      // 3. Create a reservation for OUR user
+      await request(app).post("/reservations").set("x-user-id", userId).send({
+        roomId,
+        startTime: getFutureDate(1).toISOString(),
+        endTime: getFutureDate(2).toISOString()
+      });
+
+      // 4. Create a reservation for ANOTHER user (noise data)
+      await request(app).post("/reservations").set("x-user-id", otherUserId).send({
+        roomId,
+        startTime: getFutureDate(3).toISOString(),
+        endTime: getFutureDate(4).toISOString()
+      });
+    });
+
+    it("should return all reservations belonging to the requesting user", async () => {
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", userId);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      // We expect 1 reservation (the one we created in beforeEach step 3)
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].userId).toBe(userId);
+    });
+
+    it("should NOT return reservations belonging to other users", async () => {
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", userId);
+
+      // The DB has 2 reservations total, but we should only see 1
+      const otherUserReservation = res.body.find((r: any) => r.userId === otherUserId);
+      expect(otherUserReservation).toBeUndefined();
+    });
+
+    it("should return an empty list if the user has no reservations", async () => {
+      const freshUser = generateUserId();
+      
+      const res = await request(app)
+        .get("/own-reservations")
+        .set("x-user-id", freshUser);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it("should fail with 401 if x-user-id header is missing", async () => {
+      const res = await request(app).get("/own-reservations");
+      
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("Missing x-user-id header");
+    });
+  });
+```

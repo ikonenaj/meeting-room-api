@@ -33,9 +33,9 @@ app.get("/reservations", async (req: Request, res: Response) => {
     }
 
     const result = await reservationService.getReservations({
-      roomId: roomId as string,
-      startTime: startTime as string,
-      endTime: endTime as string
+      roomId: roomId,
+      startTime: startTime,
+      endTime: endTime
     })
 
     return res.json(result);
@@ -44,6 +44,20 @@ app.get("/reservations", async (req: Request, res: Response) => {
       return res.status(400).json({ error: e.message })
     }
     return res.status(500).json({ error: "Internal Server Error" })
+  }
+});
+
+app.get("/own-reservations", async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Missing x-user-id header" });
+  }
+
+  try {
+    const result = await reservationService.getReservations({ userId: userId });
+    return res.json(result);
+  } catch (e: any) {
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
