@@ -1,68 +1,6 @@
 import request from "supertest";
 import { v4 as uuid } from "uuid";
 
-// --- MOCK DATABASE SETUP ---
-// We mock the database module before importing the app so the app uses the mock.
-jest.mock("../src/database", () => {
-  // Internal state for the mock database
-  let mockReservations: any[] = [];
-
-  const Rooms = [
-    { id: "room1", name: "Room 1" },
-    { id: "room2", name: "Room 2" },
-    { id: "room3", name: "Room 3" }
-  ];
-
-  // Helper logic duplicated from original database.ts to ensure mock behaves correctly
-  function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-    return aStart < bEnd && bStart < aEnd;
-  }
-
-  return {
-    Rooms,
-    db: {
-      getRoom: jest.fn((id: string) => Rooms.find(r => r.id === id)),
-
-      getReservation: jest.fn((id: string) => mockReservations.find(r => r.id === id)),
-
-      getReservations: jest.fn((filter: { roomId?: string; start?: Date; end?: Date }) => {
-        return mockReservations.filter(r => {
-          let match = true;
-          if (filter.roomId) match = match && r.roomId === filter.roomId;
-
-          if (filter.start || filter.end) {
-            const start = filter.start ? filter.start : new Date(0);
-            const end = filter.end ? filter.end : new Date("9999-12-31");
-            match = match && overlaps(start, end, r.startTime, r.endTime);
-          }
-          return match;
-        });
-      }),
-
-      getActiveReservationsByUser: jest.fn((userId: string) => {
-        const now = new Date();
-        return mockReservations.filter(
-          r => r.userId === userId && r.endTime > now
-        );
-      }),
-
-      addReservation: jest.fn((reservation: any) => {
-        mockReservations.push(reservation);
-      }),
-
-      deleteReservation: jest.fn((id: string) => {
-        mockReservations = mockReservations.filter(r => r.id !== id);
-      }),
-
-      isRoomAvailable: jest.fn((roomId: string, start: Date, end: Date) => {
-        const reservations = mockReservations.filter(r => r.roomId === roomId);
-        const conflict = reservations.some(r => overlaps(start, end, r.startTime, r.endTime));
-        return !conflict;
-      })
-    }
-  };
-});
-
 // --- IMPORTS ---
 // Assuming your express app is exported from index.ts.
 import app from "../src/index";
@@ -81,13 +19,12 @@ describe("Meeting Room API Integration Tests", () => {
     return date;
   };
 
-  const roomId = "room1"; // Use a valid room ID from the mock database
+  const roomId = "room1";
 
   describe("POST /reservations (Adding Reservations)", () => {
     let userId: string;
 
     beforeEach(() => {
-      // Clean up the mock state
       const allReservations = db.getReservations({});
       allReservations.forEach(r => db.deleteReservation(r.id));
 
@@ -254,7 +191,6 @@ describe("Meeting Room API Integration Tests", () => {
     const userId = generateUserId();
 
     beforeAll(async () => {
-      // Clean mock state
       const allReservations = db.getReservations({});
       allReservations.forEach(r => db.deleteReservation(r.id));
 
@@ -347,7 +283,6 @@ describe("Meeting Room API Integration Tests", () => {
     let searchStart: Date;
 
     beforeAll(async () => {
-      // Clean mock state
       const allReservations = db.getReservations({});
       allReservations.forEach(r => db.deleteReservation(r.id));
 
@@ -466,7 +401,6 @@ describe("Meeting Room API Integration Tests", () => {
     let reservationId: string;
 
     beforeEach(async () => {
-      // Clean mock state
       const allReservations = db.getReservations({});
       allReservations.forEach(r => db.deleteReservation(r.id));
 
