@@ -1,7 +1,4 @@
 import express, { Request, Response } from "express";
-import { v4 as uuid } from "uuid";
-import { Reservation } from "./types";
-import { db } from "./database";
 import * as reservationService from "./services/reservationService";
 
 const app = express();
@@ -102,7 +99,7 @@ app.delete("/reservations/:id", async (req: Request, res: Response) => {
   }
 
   const { id } = req.params;
-  
+
   try {
     await reservationService.deleteReservation(id, userId);
     return res.status(204).send();
