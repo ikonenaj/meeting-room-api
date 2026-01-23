@@ -3,6 +3,7 @@
 [Prompt 3 - Yksikkötestit post-requestin payload bodylle](#prompt-3)
 [Prompt 4 - Mock database testejä varten](#prompt-4)
 [Prompt 5 - Luo dockerfile](#prompt-5)
+[Prompt 6 - Yksikkötestit query parametreille](#prompt-6)
 
 
 # Prompt 1:
